@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=none">
+    <title>프루트 크래시 (Fruit Crash)</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: 'Malgun Gothic', sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+        #gameContainer {
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            border-radius: 12px;
+            overflow: hidden;
+            width: 480px;
+            height: 600px;
+            background-color: #fff;
+        }
+        canvas {
+            display: block;
+        }
+        .overlay-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 245, 245, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            box-sizing: border-box;
+            padding: 20px;
+            z-index: 10;
+        }
+        .title-text {
+            font-size: 36px;
+            font-weight: bold;
+            color: #ff4d6d;
+            margin-bottom: 10px;
+        }
+        .subtitle-text {
+            font-size: 18px;
+            color: #ff9f43;
+            margin-bottom: 30px;
+        }
+        .main-btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 200px;
+        }
+        .start-btn {
+            padding: 15px 0;
+            font-size: 20px;
+            font-weight: bold;
+            background-color: #ff4d6d;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(255, 77, 109, 0.3);
+            text-align: center;
+        }
+        .start-btn:hover { background-color: #ff3355; }
+        .shop-open-btn {
+            padding: 12px 0;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: #ff9f43;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(255, 159, 67, 0.3);
+            text-align: center;
+        }
+        .shop-open-btn:hover { background-color: #ee8a24; }
+        .story-img {
+            width: 100%;
+            height: 240px;
+            border-radius: 8px;
+            object-fit: cover;
+            margin-bottom: 140px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .story-box {
+            position: absolute;
+            bottom: 30px;
+            left: 20px;
+            right: 20px;
+            height: 140px;
+            background-color: rgba(44, 62, 80, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            box-sizing: border-box;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+        .story-text {
+            font-size: 15px;
+            line-height: 1.6;
+            margin: 0;
+        }
+        .next-hint {
+            align-self: flex-end;
+            font-size: 12px;
+            color: #ffda79;
+        }
+        .game-status-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 15;
+            color: white;
+        }
+        .status-title {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        .status-desc {
+            font-size: 16px;
+            color: #ccc;
+            margin-bottom: 20px;
+        }
+        .reward-info {
+            font-size: 16px;
+            color: #ff9f43;
+            font-weight: bold;
+            margin-bottom: 35px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 20px;
+        }
+        .ui-btn {
+            padding: 12px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .restart-btn { background-color: #2b9348; color: white; }
+        .restart-btn:hover { background-color: #227337; }
+        .exit-btn { background-color: #7f8c8d; color: white; }
+        .exit-btn:hover { background-color: #616c6d; }
+        
+        /* 강화 상점 스타일 */
+        .shop-title { font-size: 26px; font-weight: bold; color: #ff9f43; margin-bottom: 10px; }
+        .juice-currency { font-size: 16px; font-weight: bold; color: #2c3e50; margin-bottom: 25px; }
+        .shop-item {
+            width: 100%;
+            background: white;
+            border: 2px solid #ffe3e3;
+            border-radius: 12px;
+            padding: 15px;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .shop-item-info { display: flex; flex-direction: column; text-align: left; }
+        .shop-item-name { font-size: 16px; font-weight: bold; color: #333; }
+        .shop-item-desc { font-size: 12px; color: #7f8c8d; margin-top: 4px; }
+        .upgrade-btn {
+            background-color: #ff4d6d;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .upgrade-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+<div id="gameContainer">
+    <div id="titleScreen" class="overlay-screen">
+        <div class="title-text">프루트 크래시</div>
+        <div class="subtitle-text">Fruit Crash</div>
+        <div class="main-btn-group">
+            <button class="start-btn" onclick="showScreen(1)">게임 시작</button>
+            <button class="shop-open-btn" onclick="showShop()">영구 강화 상점</button>
+        </div>
+    </div>
+
+    <div id="storyScreen1" class="overlay-screen" style="display: none;">
+        <img src="scene_1.png" alt="스토리1 일러스트" class="story-img">
+        <div class="story-box" onclick="showScreen(2)">
+            <p class="story-text">주인공 '프루티'는 과일을 너무너무 좋아하지만... 지독한 과일 알러지가 있는 비운의 소녀입니다. 한 입만 먹어도 온몸이 간지럽고 코가 빨개지죠.</p>
+            <span class="next-hint">클릭하여 계속 ▶</span>
+        </div>
+    </div>
+
+    <div id="storyScreen2" class="overlay-screen" style="display: none;">
+        <img src="scene_2.png" alt="스토리2 일러스트" class="story-img">
+        <div class="story-box" onclick="showScreen(3)">
+            <p class="story-text">어느 날 밤, 프루티는 꿈속에서 거대하고 단단한 과일 왕국에 갇히게 됩니다! 프루티는 과일들을 깨부수고 무사히 과즙을 먹을 수 있을까요?</p>
+            <span class="next-hint">클릭하여 게임 가이드 보기 ▶</span>
+        </div>
+    </div>
+
+    <div id="guideScreen" class="overlay-screen" style="display: none;">
+        <div style="width: 100%; height: 240px; background-color: #fff; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border-radius: 8px; display: flex; flex-direction: column; justify-content: center; align-items: center; color: #ff4d6d; font-weight: bold; margin-bottom: 140px; padding: 20px; box-sizing: border-box; border: 2px solid #ffe3e3;">
+            <span style="font-size: 20px; margin-bottom: 15px;">🎮 플레이 조작법</span>
+            <span style="color: #555; font-weight: normal; font-size: 14px; text-align: center; line-height: 1.6;">
+                <b>PC 환경</b>: 키보드 <span style="color:#ff9f43; font-weight:bold;">[좌우 방향키]</span>로 프루티 이동<br>
+                <b>모바일 환경</b>: 화면 터치 후 <span style="color:#ff9f43; font-weight:bold;">[좌우 드래그]</span>로 이동
+            </span>
+        </div>
+        <div class="story-box" onclick="startGame()" style="background-color: rgba(231, 76, 60, 0.95); border: 2px solid #ff4d6d;">
+            <p class="story-text" style="font-size: 14px;">
+                <b>⚠️ [필독] 게임 규칙 설명</b><br>
+                1. 과일 파괴 시 유효 과즙 원료(주황색)와 알러지 물질(보라색)이 낙하합니다.<br>
+                2. 보라색 물질에 닿으면 게이지와 바구니가 주어지니 피하고, 주황색 원료를 최대한 모으세요!
+            </p>
+            <span class="next-hint" style="color: #fff; font-weight: bold;">클릭하여 게임 시작 ▶</span>
+        </div>
+    </div>
+
+    <div id="shopScreen" class="overlay-screen" style="display: none; background-color: #fff9f9;">
+        <div class="shop-title">🧪 과즙 연구소 (강화 상점)</div>
+        <div id="shopJuiceCount" class="juice-currency">보유한 과즙 원료: 0개</div>
+        
+        <div class="shop-item">
+            <div class="shop-item-info">
+                <span class="shop-item-name">알러지 저항성 강화</span>
+                <span id="statHpDesc" class="shop-item-desc">기본 알러지 저항 최대치 증가 (현재: LV.0)</span>
+            </div>
+            <button id="buyHpBtn" class="upgrade-btn" onclick="upgradeStat('hp')">비용: 5개</button>
+        </div>
+
+        <div class="shop-item">
+            <div class="shop-item-info">
+                <span class="shop-item-name">방호 장비 경량화</span>
+                <span id="statSpeedDesc" class="shop-item-desc">바구니(패들) 조작 이동 속도 증가 (현재: LV.0)</span>
+            </div>
+            <button id="buySpeedBtn" class="upgrade-btn" onclick="upgradeStat('speed')">비용: 5개</button>
+        </div>
+
+        <button class="ui-btn exit-btn" onclick="closeShop()" style="margin-top: 40px; width: 80%;">나가기</button>
+    </div>
+
+    <div id="statusLayer" class="game-status-layer">
+        <div id="statusTitle" class="status-title">GAME OVER</div>
+        <div id="statusDesc" class="status-desc">설명 텍스트</div>
+        <div id="statusReward" class="reward-info">획득한 과즙 원료: +0개</div>
+        <div class="btn-group">
+            <button class="ui-btn restart-btn" onclick="handleRestart()">다시 하기</button>
+            <button class="ui-btn exit-btn" onclick="handleExit()">끝내기</button>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas" width="480" height="600"></canvas>
+</div>
+
+<script>
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+// 세이브 및 영구 능력치 변수
+let savedJuiceRaw = 0; 
+let upgLevelHp = 0;   
+let upgLevelSpeed = 0; 
+
+let score = 0;
+let allergyHP = 100;
+let maxAllergyHP = 100;
+let isGameActive = false;
+let sessionEarnedJuice = 0;
+
+const paddle = {
+    x: canvas.width / 2 - 50,
+    y: canvas.height - 50,
+    width: 100,
+    height: 15,
+    baseSpeed: 9,
+    speed: 9
+};
+
+const ball = {
+    x: canvas.width / 2,
+    y: canvas.height - 70,
+    radius: 8,
+    speed: 4.5,
+    dx: 4,
+    dy: -4,
+    isFalling: false
+};
+
+// 연쇄 석류 탄환 객체 배열
+let pomegranateSeeds = [];
+
+const keys = { ArrowLeft: false, ArrowRight: false, Left: false, Right: false };
+
+const brickRowCount = 4;
+const brickColumnCount = 5;
+const brickWidth = 76;
+const brickHeight = 35;
+const brickPadding = 12;
+const brickOffsetTop = 80;
+const brickOffsetLeft = 25;
+
+const FRUIT_TYPES = {
+    APPLE: { color: "#ff4d6d", hp: 1, score: 100, type: "apple" },
+    WATERMELON: { color: "#2b9348", hp: 3, score: 300, type: "watermelon" },
+    POMEGRANATE: { color: "#9e1b32", hp: 1, score: 250, type: "pomegranate" }
+};
+
+let bricks = [];
+function initBricks() {
+    bricks = [];
+    for (let c = 0; c < brickColumnCount; c++) {
+        bricks[c] = [];
+        for (let r = 0; r < brickRowCount; r++) {
+            let type = FRUIT_TYPES.APPLE;
+            if (r === 1 || r === 2) {
+                type = FRUIT_TYPES.WATERMELON;
+            } else if (r === 3 && (c === 1 || c === 3)) {
+                type = FRUIT_TYPES.POMEGRANATE;
+            }
+            
+            bricks[c][r] = { 
+                x: 0, y: 0, 
+                status: type.hp, maxHp: type.hp,
+                color: type.color, score: type.score,
+                type: type.type
+            };
+        }
+    }
+}
+
+let items = [];
+
+function showScreen(screenNum) {
+    document.getElementById("titleScreen").style.display = "none";
+    document.getElementById("storyScreen1").style.display = "none";
+    document.getElementById("storyScreen2").style.display = "none";
+    document.getElementById("guideScreen").style.display = "none";
+    document.getElementById("statusLayer").style.display = "none";
+    document.getElementById("shopScreen").style.display = "none";
+    
+    if (screenNum === 1) document.getElementById("storyScreen1").style.display = "flex";
+    if (screenNum === 2) document.getElementById("storyScreen2").style.display = "flex";
+    if (screenNum === 3) document.getElementById("guideScreen").style.display = "flex";
+}
+
+function showShop() {
+    document.getElementById("titleScreen").style.display = "none";
+    document.getElementById("shopScreen").style.display = "flex";
+    updateShopUI();
+}
+
+function closeShop() {
+    document.getElementById("shopScreen").style.display = "none";
+    document.getElementById("titleScreen").style.display = "flex";
+}
+
+function updateShopUI() {
+    document.getElementById("shopJuiceCount").innerText = `보유한 과즙 원료: ${savedJuiceRaw}개`;
+    document.getElementById("statHpDesc").innerText = `기본 알러지 저항 최대치 증가 (현재: LV.${upgLevelHp})`;
+    document.getElementById("statSpeedDesc").innerText = `바구니(패들) 조작 이동 속도 증가 (현재: LV.${upgLevelSpeed})`;
+    
+    const hpCost = 5 + upgLevelHp * 5;
+    const speedCost = 5 + upgLevelSpeed * 5;
+    
+    const buyHpBtn = document.getElementById("buyHpBtn");
+    if (upgLevelHp >= 5) { buyHpBtn.innerText = "최대 레벨"; buyHpBtn.disabled = true; }
+    else { buyHpBtn.innerText = `비용: ${hpCost}개`; buyHpBtn.disabled = savedJuiceRaw < hpCost; }
+    
+    const buySpeedBtn = document.getElementById("buySpeedBtn");
+    if (upgLevelSpeed >= 5) { buySpeedBtn.innerText = "최대 레벨"; buySpeedBtn.disabled = true; }
+    else { buySpeedBtn.innerText = `비용: ${speedCost}개`; buySpeedBtn.disabled = savedJuiceRaw < speedCost; }
+}
+
+function upgradeStat(stat) {
+    if (stat === 'hp') {
+        const cost = 5 + upgLevelHp * 5;
+        if (savedJuiceRaw >= cost && upgLevelHp < 5) {
+            savedJuiceRaw -= cost; upgLevelHp++;
+        }
+    } else if (stat === 'speed') {
+        const cost = 5 + upgLevelSpeed * 5;
+        if (savedJuiceRaw >= cost && upgLevelSpeed < 5) {
+            savedJuiceRaw -= cost; upgLevelSpeed++;
+        }
+    }
+    updateShopUI();
+}
+
+function applyUpgrades() {
+    maxAllergyHP = 100 + upgLevelHp * 20;
+    allergyHP = maxAllergyHP;
+    paddle.speed = paddle.baseSpeed + upgLevelSpeed * 1.2;
+}
+
+function startGame() {
+    document.getElementById("guideScreen").style.display = "none";
+    document.getElementById("statusLayer").style.display = "none";
+    resetGameData();
+    isGameActive = true;
+}
+
+function resetGameData() {
+    score = 0;
+    sessionEarnedJuice = 0;
+    applyUpgrades();
+    items = [];
+    pomegranateSeeds = [];
+    paddle.width = 100;
+    paddle.x = canvas.width / 2 - 50;
+    resetBall();
+    initBricks();
+}
+
+function resetBall() {
+    ball.x = paddle.x + paddle.width / 2;
+    ball.y = paddle.y - ball.radius - 4;
+    ball.dx = (Math.random() > 0.5 ? 4 : -4);
+    ball.dy = -4.5;
+    ball.isFalling = false;
+}
+
+document.addEventListener("keydown", (e) => { if (e.key in keys) keys[e.key] = true; });
+document.addEventListener("keyup", (e) => { if (e.key in keys) keys[e.key] = false; });
+
+function handleMove(clientX) {
+    if (!isGameActive) return;
+    const rect = canvas.getBoundingClientRect();
+    const relativeX = clientX - rect.left;
+    paddle.x = relativeX - paddle.width / 2;
+    
+    if (paddle.x < 0) paddle.x = 0;
+    if (paddle.x + paddle.width > canvas.width) paddle.x = canvas.width - paddle.width;
+}
+
+canvas.addEventListener("mousemove", (e) => handleMove(e.clientX));
+canvas.addEventListener("touchmove", (e) => {
+    if (e.touches.length > 0) handleMove(e.touches[0].clientX);
+}, { passive: true });
+
+function spawnItem(x, y) {
+    // 디버프 가스 아이템 낙하 (보라색)
+    if (Math.random() < 0.4) {
+        items.push({ x: x, y: y, radius: 8, vy: 1.0, type: "gas" });
+    }
+    // 유효 과즙 원료 아이템 낙하 (주황색 - 수집용)
+    if (Math.random() < 0.5) {
+        items.push({ x: x, y: y, radius: 7, vy: 1.5, type: "juice" });
+    }
+}
+
+function triggerPomegranateExplosion(bx, by) {
+    const angleStep = (Math.PI * 2) / 8;
+    for (let i = 0; i < 8; i++) {
+        const angle = i * angleStep;
+        pomegranateSeeds.push({
+            x: bx,
+            y: by,
+            radius: 4,
+            dx: Math.cos(angle) * 5,
+            dy: Math.sin(angle) * 5,
+            active: true
+        });
+    }
+}
+
+function checkBlockCollision(targetX, targetY) {
+    for (let c = 0; c < brickColumnCount; c++) {
+        for (let r = 0; r < brickRowCount; r++) {
+            const b = bricks[c][r];
+            if (b.status > 0) {
+                if (targetX > b.x && targetX < b.x + brickWidth && targetY > b.y && targetY < b.y + brickHeight) {
+                    b.status--;
+                    if (b.status === 0) {
+                        score += b.score;
+                        spawnItem(b.x + brickWidth / 2, b.y + brickHeight);
+                        if (b.type === "pomegranate") {
+                            triggerPomegranateExplosion(b.x + brickWidth / 2, b.y + brickHeight / 2);
+                        }
+                    }
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+function collisionDetection() {
+    let activeBricks = 0;
+    for (let c = 0; c < brickColumnCount; c++) {
+        for (let r = 0; r < brickRowCount; r++) {
+            if (bricks[c][r].status > 0) activeBricks++;
+        }
+    }
+    
+    if (activeBricks === 0 && isGameActive) {
+        isGameActive = false;
+        savedJuiceRaw += sessionEarnedJuice;
+        showEndLayer("STAGE CLEAR 🎉", "프루티가 모든 과일을 격파했습니다!", "#2b9348");
+        return;
+    }
+
+    if (checkBlockCollision(ball.x, ball.y)) {
+        ball.dy = -ball.dy;
+    }
+}
+
+function showEndLayer(title, desc, titleColor) {
+    const layer = document.getElementById("statusLayer");
+    const tLabel = document.getElementById("statusTitle");
+    const dLabel = document.getElementById("statusDesc");
+    const rLabel = document.getElementById("statusReward");
+    tLabel.innerText = title;
+    tLabel.style.color = titleColor;
+    dLabel.innerText = desc;
+    rLabel.innerText = `확보한 과즙 원료: +${sessionEarnedJuice}개 (누적: ${savedJuiceRaw}개)`;
+    layer.style.display = "flex";
+}
+
+function handleRestart() {
+    document.getElementById("statusLayer").style.display = "none";
+    resetGameData();
+    isGameActive = true;
+}
+
+function handleExit() {
+    document.getElementById("statusLayer").style.display = "none";
+    document.getElementById("titleScreen").style.display = "flex";
+    isGameActive = false;
+}
+
+function drawBackground() {
+    ctx.fillStyle = "#fff5f5"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "#ffe3e3"; ctx.lineWidth = 1.5;
+    for (let x = 0; x < canvas.width; x += 40) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+    }
+    for (let y = 0; y < canvas.height; y += 40) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+    }
+}
+
+function drawFruity() {
+    const px = paddle.x + paddle.width / 2;
+    const py = paddle.y + 35;
+    ctx.fillStyle = "#4a3728"; ctx.beginPath(); ctx.arc(px, py - 22, 16, Math.PI, 0); ctx.fill();
+    ctx.fillStyle = "#ffffff"; ctx.fillRect(px - 12, py - 8, 24, 16);
+    ctx.fillStyle = "#4a90e2"; ctx.fillRect(px - 12, py + 8, 24, 10);
+    ctx.fillStyle = "#ffdbac"; ctx.beginPath(); ctx.arc(px, py - 18, 12, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(px - 8, py + 18, 5, 8); ctx.fillRect(px + 3, py + 18, 5, 8);
+    ctx.fillStyle = "#4a3728"; ctx.fillRect(px - 14, py - 24, 6, 12); ctx.fillRect(px + 8, py - 24, 6, 12); ctx.fillRect(px - 12, py - 26, 24, 5);
+    ctx.fillStyle = "#333"; ctx.fillRect(px - 6, py - 20, 2, 3); ctx.fillRect(px + 4, py - 20, 2, 3);
+    ctx.fillStyle = "#ff6b6b"; ctx.beginPath(); ctx.arc(px, py - 16, 2.5, 0, Math.PI * 2); ctx.fill();
+    
+    ctx.fillStyle = "#ff9f43"; ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+    ctx.strokeStyle = "#d35400"; ctx.lineWidth = 1;
+    for(let i = paddle.x + 10; i < paddle.x + paddle.width; i += 10) {
+        ctx.beginPath(); ctx.moveTo(i, paddle.y); ctx.lineTo(i, paddle.y + paddle.height); ctx.stroke();
+    }
+}
+
+function drawBall() {
+    ctx.save(); ctx.translate(ball.x, ball.y);
+    const angle = Math.atan2(ball.dy, ball.dx); ctx.rotate(angle);
+    ctx.fillStyle = "#2e86de"; ctx.beginPath(); ctx.arc(0, 0, ball.radius, Math.PI / 2, (Math.PI * 3) / 2); ctx.fill();
+    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(0, 0, ball.radius, (Math.PI * 3) / 2, Math.PI / 2); ctx.fill();
+    ctx.strokeStyle = "#a4b0be"; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+}
+
+function drawBricks() {
+    for (let c = 0; c < brickColumnCount; c++) {
+        for (let r = 0; r < brickRowCount; r++) {
+            const b = bricks[c][r];
+            if (b.status > 0) {
+                const brickX = c * (brickWidth + brickPadding) + brickOffsetLeft;
+                const brickY = r * (brickHeight + brickPadding) + brickOffsetTop;
+                b.x = brickX; b.y = brickY;
+                ctx.fillStyle = b.color; ctx.beginPath(); ctx.roundRect(brickX, brickY, brickWidth, brickHeight, 8); ctx.fill();
+                
+                if (b.type === "watermelon") {
+                    // 화가 난 찡그린 수박 디테일 연출
+                    ctx.strokeStyle = "#1b4d3e"; ctx.lineWidth = 2; ctx.beginPath();
+                    ctx.moveTo(brickX + 20, brickY); ctx.quadraticCurveTo(brickX + 25, brickY + 17, brickX + 20, brickY + brickHeight);
+                    ctx.moveTo(brickX + 56, brickY); ctx.quadraticCurveTo(brickX + 51, brickY + 17, brickX + 56, brickY + brickHeight); ctx.stroke();
+                    
+                    // 찌푸린 눈썹 연출
+                    ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
+                    ctx.beginPath(); ctx.moveTo(brickX + 22, brickY + 10); ctx.lineTo(brickX + 32, brickY + 14); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(brickX + 54, brickY + 10); ctx.lineTo(brickX + 44, brickY + 14); ctx.stroke();
+                    
+                    // 껍질 크랙 표현 (내구도 손상도 가시화)
+                    if (b.status < b.maxHp) { 
+                        ctx.strokeStyle = "rgba(255, 255, 255, 0.85)"; ctx.lineWidth = 1.5;
+                        ctx.beginPath(); ctx.moveTo(brickX + 15, brickY + 8); ctx.lineTo(brickX + 35, brickY + 28); 
+                        if (b.status === 1) { ctx.moveTo(brickX + 60, brickY + 8); ctx.lineTo(brickX + 45, brickY + 25); }
+                        ctx.stroke(); 
+                    }
+                } else if (b.type === "apple") {
+                    ctx.fillStyle = "#ffda79"; ctx.fillRect(brickX + 25, brickY + 12, 2, 3); ctx.fillRect(brickX + 50, brickY + 15, 2, 3);
+                } else if (b.type === "pomegranate") {
+                    // 석류 무늬 씨앗 결정 묘사
+                    ctx.fillStyle = "#ffffff"; ctx.fillRect(brickX + 30, brickY + 10, 3, 3); ctx.fillRect(brickX + 45, brickY + 20, 3, 3);
+                }
+                
+                // 눈과 입 그리기 (귀여운 과일 몬스터 공통 얼굴 구조 유지)
+                ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(brickX + brickWidth / 2 - 12, brickY + 18, 4, 0, Math.PI * 2); ctx.arc(brickX + brickWidth / 2 + 12, brickY + 18, 4, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.arc(brickX + brickWidth / 2 - 12, brickY + 18, 2, 0, Math.PI * 2); ctx.arc(brickX + brickWidth / 2 + 12, brickY + 18, 2, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = "#000000"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(brickX + brickWidth / 2 - 5, brickY + 25); ctx.lineTo(brickX + brickWidth / 2, brickY + 22); ctx.lineTo(brickX + brickWidth / 2 + 5, brickY + 25); ctx.stroke();
+            }
+        }
+    }
+}
+
+function drawItems() {
+    items.forEach((item, index) => {
+        if (!isGameActive) return;
+        
+        if (item.type === "gas") {
+            // 역방향 중력 가속도 적용 (기획서 기믹 반영)
+            item.vy += 0.08; 
+            item.y += item.vy;
+            
+            ctx.fillStyle = "#9b59b6"; ctx.beginPath(); ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#8e44ad"; ctx.fillRect(item.x - 10, item.y - 2, 4, 4); ctx.fillRect(item.x + 6, item.y - 2, 4, 4);
+            
+            if (item.y + item.radius > paddle.y && item.x > paddle.x && item.x < paddle.x + paddle.width) {
+                allergyHP = Math.max(0, allergyHP - 20); paddle.width = Math.max(50, paddle.width - 15); items.splice(index, 1);
+                if (allergyHP <= 0 && isGameActive) { isGameActive = false; savedJuiceRaw += sessionEarnedJuice; showEndLayer("GAME OVER", "알러지 물질을 과다 흡입했습니다!", "#ff4d6d"); }
+            }
+        } else if (item.type === "juice") {
+            // 주황색 유효 원료 과즙 획득 아이템
+            item.y += item.vy;
+            ctx.fillStyle = "#ff9f43"; ctx.beginPath(); ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(item.x - 2, item.y - 2, 2, 0, Math.PI * 2); ctx.fill(); // 반짝임 효과
+            
+            if (item.y + item.radius > paddle.y && item.x > paddle.x && item.x < paddle.x + paddle.width) {
+                sessionEarnedJuice++;
+                items.splice(index, 1);
+            }
+        }
+        
+        if (item.y > canvas.height) { items.splice(index, 1); }
+    });
+}
+
+function drawSeeds() {
+    pomegranateSeeds.forEach((seed, index) => {
+        if (!seed.active) return;
+        seed.x += seed.dx;
+        seed.y += seed.dy;
+        
+        ctx.fillStyle = "#ff4d6d"; ctx.beginPath(); ctx.arc(seed.x, seed.y, seed.radius, 0, Math.PI * 2); ctx.fill();
+        
+        // 블록과의 물리 연쇄 타격 판정처리
+        if (checkBlockCollision(seed.x, seed.y)) {
+            seed.active = false;
+            pomegranateSeeds.splice(index, 1);
+            return;
+        }
+        
+        // 화면 외곽 소멸 처리
+        if (seed.x < 0 || seed.x > canvas.width || seed.y < 0 || seed.y > canvas.height) {
+            seed.active = false;
+            pomegranateSeeds.splice(index, 1);
+        }
+    });
+}
+
+function drawUI() {
+    ctx.fillStyle = "#ff9f43"; ctx.beginPath(); ctx.arc(40, 35, 20, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5;
+    for(let i=0; i<360; i+=60) { let rad = i * Math.PI / 180; ctx.beginPath(); ctx.moveTo(40, 35); ctx.lineTo(40 + 16 * Math.cos(rad), 35 + 16 * Math.sin(rad)); ctx.stroke(); }
+    
+    ctx.fillStyle = "#2c3e50"; ctx.font = "bold 14px 'Malgun Gothic'"; ctx.textAlign = "left"; 
+    ctx.fillText(`SCORE: ${score}`, 70, 32);
+    ctx.fillStyle = "#e67e22"; ctx.fillText(`🧪 원료: ${sessionEarnedJuice}개`, 70, 48);
+    
+    ctx.textAlign = "right"; ctx.fillStyle = "#7f8c8d"; ctx.font = "12px 'Malgun Gothic'"; ctx.fillText("알러지 게이지", canvas.width - 145, 40);
+    ctx.strokeStyle = "#7f8c8d"; ctx.lineWidth = 2; ctx.strokeRect(canvas.width - 135, 25, 120, 20);
+    
+    ctx.fillStyle = "#ff4d6d"; const hpBarWidth = (allergyHP / maxAllergyHP) * 116; ctx.fillRect(canvas.width - 133, 27, hpBarWidth, 16);
+    ctx.fillStyle = "#7f8c8d"; ctx.fillRect(canvas.width - 145, 33, 10, 4);
+}
+
+function update() {
+    if (!isGameActive) return;
+
+    if (keys.ArrowLeft || keys.Left) paddle.x -= paddle.speed;
+    if (keys.ArrowRight || keys.Right) paddle.x += paddle.speed;
+
+    if (paddle.x < 0) paddle.x = 0;
+    if (paddle.x + paddle.width > canvas.width) paddle.x = canvas.width - paddle.width;
+
+    ball.x += ball.dx;
+    ball.y += ball.dy;
+
+    if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) { ball.dx = -ball.dx; }
+    if (ball.y - ball.radius < 0) { ball.dy = -ball.dy; }
+
+    if (ball.y - ball.radius > canvas.height && !ball.isFalling) {
+        ball.isFalling = true; 
+        allergyHP = Math.max(0, allergyHP - 15);
+        
+        if (allergyHP <= 0) {
+            isGameActive = false;
+            savedJuiceRaw += sessionEarnedJuice;
+            showEndLayer("GAME OVER", "과즙 알러지 증상이 심해졌습니다!", "#ff4d6d");
+        } else {
+            resetBall();
+        }
+    }
+
+    if (ball.y + ball.radius > paddle.y && ball.y - ball.radius < paddle.y + paddle.height) {
+        if (ball.x > paddle.x && ball.x < paddle.x + paddle.width) {
+            ball.dy = -ball.speed;
+            let hitPoint = ball.x - (paddle.x + paddle.width / 2);
+            ball.dx = hitPoint * 0.12;
+        }
+    }
+    collisionDetection();
+}
+
+function mainLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawBackground();
+    drawBricks(); 
+    drawBall(); 
+    drawSeeds();
+    drawFruity(); 
+    drawItems(); 
+    drawUI();
+    update();
+    requestAnimationFrame(mainLoop);
+}
+
+initBricks();
+mainLoop();
+</script>
+
+</body>
+</html>
