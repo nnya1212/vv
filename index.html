@@ -196,6 +196,20 @@
             cursor: pointer;
         }
         .upgrade-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+        .status-extra-btn { background:#ff9f43; color:white; }
+        .stage-list { width:100%; max-width:330px; display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:14px 0 18px; }
+        .stage-btn { padding:13px 8px; border:2px solid #ffd6a5; border-radius:14px; background:#fff; color:#6b4b3e; font-weight:bold; cursor:pointer; }
+        .stage-btn:disabled { background:#e8e8e8; color:#999; border-color:#ddd; cursor:not-allowed; }
+        .stage-note { font-size:13px; color:#777; margin:0 0 8px; }
+        .pause-screen { background:rgba(30,35,45,.92); color:white; }
+        .pause-screen .title-text { color:#fff; }
+        .pause-screen .subtitle-text { color:#ffd6a5; margin-bottom:22px; }
+        .pause-screen .main-btn-group { width:220px; }
+        .status-actions { display:flex; flex-direction:column; align-items:center; gap:12px; }
+        .status-actions .btn-group { gap:10px; flex-wrap:wrap; justify-content:center; }
+        .status-actions .ui-btn { padding:11px 17px; }
+        #stageSelectScreen { background:#fff9f9; }
+        #stageSelectScreen .title-text { font-size:29px; }
     </style>
 </head>
 <body>
@@ -206,7 +220,8 @@
         <div class="subtitle-text">Fruit Crash</div>
         <div class="main-btn-group">
             <button class="start-btn" onclick="showScreen(1)">게임 시작</button>
-            <button class="shop-open-btn" onclick="showShop()">영구 강화 상점</button>
+            <button class="shop-open-btn" onclick="showStageSelect()">스테이지 선택</button>
+            <button class="shop-open-btn" onclick="showShop('titleScreen')">과즙 연구소 / 영구 강화</button>
         </div>
     </div>
 
@@ -234,13 +249,33 @@
                 <b>모바일 환경</b>: 화면 터치 후 <span style="color:#ff9f43; font-weight:bold;">[좌우 드래그]</span>로 이동
             </span>
         </div>
-        <div class="story-box" onclick="startGame()" style="background-color: rgba(231, 76, 60, 0.95); border: 2px solid #ff4d6d;">
-            <p class="story-text" style="font-size: 14px;">
+        <div class="story-box" onclick="startGame()" style="background-color: rgba(231, 76, 60, 0.95); border: 2px solid #ff4d6d; height: 190px; bottom: 20px; padding: 14px 16px;">
+            <p class="story-text" style="font-size: 13px; line-height: 1.45;">
                 <b>⚠️ [필독] 게임 규칙 설명</b><br>
-                1. 과일 파괴 시 유효 과즙 원료(주황색)와 알러지 물질(보라색)이 낙하합니다.<br>
-                2. 보라색 물질에 닿으면 게이지와 바구니가 주어지니 피하고, 주황색 원료를 최대한 모으세요!
+                1. 🟠 과즙 원료와 💗 체력 회복 아이템은 좋은 아이템입니다. 꼭 받아주세요!<br>
+                2. 🟣 알레르기 물질은 위험 아이템입니다. 닿으면 체력이 깎이니 피하세요!<br>
+                3. 파란색·초록색 특수 아이템은 플레이에 도움을 줍니다.
             </p>
             <span class="next-hint" style="color: #fff; font-weight: bold;">클릭하여 게임 시작 ▶</span>
+        </div>
+    </div>
+
+    <div id="stageSelectScreen" class="overlay-screen" style="display:none;">
+        <div class="title-text">스테이지 선택</div>
+        <div class="subtitle-text" style="margin-bottom:8px;">클리어한 스테이지는 언제든 다시 도전할 수 있어요!</div>
+        <p class="stage-note" id="stageProgressText">해금 진행도: 1 / 5</p>
+        <div class="stage-list" id="stageList"></div>
+        <button class="ui-btn exit-btn" onclick="showTitle()">뒤로 가기</button>
+    </div>
+
+    <div id="pauseScreen" class="overlay-screen pause-screen" style="display:none;">
+        <div class="title-text">일시 정지</div>
+        <div class="subtitle-text">ESC 키를 누르면 이어서 플레이합니다.</div>
+        <div class="main-btn-group">
+            <button class="start-btn" onclick="resumeGame()">계속하기</button>
+            <button class="shop-open-btn" onclick="showShop('pauseScreen')">영구 상점</button>
+            <button class="shop-open-btn" onclick="showStageSelectFromPause()">스테이지 선택</button>
+            <button class="ui-btn exit-btn" onclick="leaveToTitle()">게임 종료</button>
         </div>
     </div>
 
@@ -271,9 +306,15 @@
         <div id="statusTitle" class="status-title">GAME OVER</div>
         <div id="statusDesc" class="status-desc">설명 텍스트</div>
         <div id="statusReward" class="reward-info">획득한 과즙 원료: +0개</div>
-        <div class="btn-group">
-            <button class="ui-btn restart-btn" onclick="handleRestart()">다시 하기</button>
-            <button class="ui-btn exit-btn" onclick="handleExit()">끝내기</button>
+        <div class="status-actions">
+            <div class="btn-group">
+                <button class="ui-btn restart-btn" onclick="handleRestart()">다시 하기</button>
+                <button class="ui-btn exit-btn" onclick="handleExit()">끝내기</button>
+            </div>
+            <div class="btn-group">
+                <button class="ui-btn status-extra-btn" onclick="showShop('statusLayer')">영구 상점</button>
+                <button class="ui-btn status-extra-btn" onclick="showStageSelectFromStatus()">스테이지 선택</button>
+            </div>
         </div>
     </div>
 
@@ -284,485 +325,380 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-// 세이브 및 영구 능력치 변수
-let savedJuiceRaw = 0; 
-let upgLevelHp = 0;   
-let upgLevelSpeed = 0; 
+// 저장 데이터: 과즙, 강화 레벨, 해금 스테이지
+const SAVE_KEY = "fruitCrashSave_v2";
+let savedJuiceRaw = 0;
+let upgLevelHp = 0;
+let upgLevelSpeed = 0;
+let unlockedStage = 1;
+let currentStage = 1;
+let clearedStages = [];
+function loadSave() {
+    try {
+        const data = JSON.parse(localStorage.getItem(SAVE_KEY) || "{}");
+        savedJuiceRaw = Math.max(0, Number(data.juice) || 0);
+        upgLevelHp = Math.min(5, Math.max(0, Number(data.hp) || 0));
+        upgLevelSpeed = Math.min(5, Math.max(0, Number(data.speed) || 0));
+        unlockedStage = Math.min(5, Math.max(1, Number(data.unlockedStage) || 1));
+        currentStage = Math.min(unlockedStage, Math.max(1, Number(data.currentStage) || 1));
+        clearedStages = Array.isArray(data.clearedStages) ? data.clearedStages.filter(n => Number.isInteger(n) && n >= 1 && n <= 5) : [];
+    } catch (e) { console.warn("저장 데이터를 불러오지 못했습니다.", e); }
+}
+function saveGame() {
+    try {
+        localStorage.setItem(SAVE_KEY, JSON.stringify({
+            juice: savedJuiceRaw, hp: upgLevelHp, speed: upgLevelSpeed,
+            unlockedStage, currentStage, clearedStages
+        }));
+    } catch (e) { console.warn("게임 저장에 실패했습니다.", e); }
+}
+loadSave();
 
 let score = 0;
 let allergyHP = 100;
 let maxAllergyHP = 100;
 let isGameActive = false;
 let sessionEarnedJuice = 0;
+let stageCleared = false;
+let shieldTime = 0, fireTime = 0, wideTime = 0, slowTime = 0;
 
-const paddle = {
-    x: canvas.width / 2 - 50,
-    y: canvas.height - 50,
-    width: 100,
-    height: 15,
-    baseSpeed: 9,
-    speed: 9
-};
-
-const ball = {
-    x: canvas.width / 2,
-    y: canvas.height - 70,
-    radius: 8,
-    speed: 4.5,
-    dx: 4,
-    dy: -4,
-    isFalling: false
-};
-
-// 연쇄 석류 탄환 객체 배열
+const paddle = { x: canvas.width / 2 - 50, y: canvas.height - 50, width: 100, height: 15, baseSpeed: 9, speed: 9 };
+const ball = { x: canvas.width / 2, y: canvas.height - 70, radius: 8, speed: 4.5, dx: 4, dy: -4.5, isFalling: false };
 let pomegranateSeeds = [];
-
+let items = [];
 const keys = { ArrowLeft: false, ArrowRight: false, Left: false, Right: false };
-
-const brickRowCount = 4;
 const brickColumnCount = 5;
-const brickWidth = 76;
-const brickHeight = 35;
-const brickPadding = 12;
-const brickOffsetTop = 80;
-const brickOffsetLeft = 25;
+const brickWidth = 76, brickHeight = 35, brickPadding = 12, brickOffsetTop = 95, brickOffsetLeft = 25;
 
 const FRUIT_TYPES = {
-    APPLE: { color: "#ff4d6d", hp: 1, score: 100, type: "apple" },
-    WATERMELON: { color: "#2b9348", hp: 3, score: 300, type: "watermelon" },
-    POMEGRANATE: { color: "#9e1b32", hp: 1, score: 250, type: "pomegranate" }
+    apple:       { color: "#ff4d6d", hp: 1, score: 100, name: "사과" },
+    watermelon:  { color: "#2b9348", hp: 3, score: 300, name: "수박" },
+    pomegranate: { color: "#9e1b32", hp: 1, score: 250, name: "석류" },
+    strawberry:  { color: "#ed4777", hp: 2, score: 200, name: "딸기" },
+    pineapple:   { color: "#e6ad28", hp: 2, score: 220, name: "파인애플" },
+    orange:      { color: "#f28c28", hp: 2, score: 220, name: "오렌지" },
+    grape:       { color: "#8754b8", hp: 2, score: 240, name: "포도" }
 };
-
+const STAGES = [
+    { name: "사과 정원", rows: 4, types: ["apple","apple","watermelon","apple","pomegranate"] },
+    { name: "수박 농장", rows: 4, types: ["apple","watermelon","watermelon","strawberry","pomegranate"] },
+    { name: "석류 연구소", rows: 5, types: ["strawberry","watermelon","pomegranate","orange","pineapple"] },
+    { name: "과일 왕국", rows: 5, types: ["pineapple","grape","watermelon","orange","strawberry"] },
+    { name: "알레르기 성", rows: 6, types: ["grape","pineapple","orange","watermelon","pomegranate"] }
+];
 let bricks = [];
 function initBricks() {
     bricks = [];
+    const config = STAGES[currentStage - 1];
     for (let c = 0; c < brickColumnCount; c++) {
         bricks[c] = [];
-        for (let r = 0; r < brickRowCount; r++) {
-            let type = FRUIT_TYPES.APPLE;
-            if (r === 1 || r === 2) {
-                type = FRUIT_TYPES.WATERMELON;
-            } else if (r === 3 && (c === 1 || c === 3)) {
-                type = FRUIT_TYPES.POMEGRANATE;
-            }
-            
-            bricks[c][r] = { 
-                x: 0, y: 0, 
-                status: type.hp, maxHp: type.hp,
-                color: type.color, score: type.score,
-                type: type.type
-            };
+        for (let r = 0; r < config.rows; r++) {
+            let typeName = config.types[(c + r * 2 + currentStage - 1) % config.types.length];
+            if (currentStage === 1 && r === 0) typeName = "apple";
+            const type = FRUIT_TYPES[typeName];
+            bricks[c][r] = { x: 0, y: 0, status: type.hp, maxHp: type.hp, color: type.color, score: type.score, type: typeName };
         }
     }
 }
 
-let items = [];
-
+let shopReturnScreen = "titleScreen";
+let paused = false;
+function hideAllScreens() {
+    ["titleScreen","storyScreen1","storyScreen2","guideScreen","statusLayer","shopScreen","stageSelectScreen","pauseScreen"].forEach(id => document.getElementById(id).style.display = "none");
+}
+function showTitle() { hideAllScreens(); document.getElementById("titleScreen").style.display = "flex"; isGameActive = false; paused = false; document.querySelector("#titleScreen .start-btn").innerText = `게임 시작 (스테이지 ${currentStage})`; saveGame(); }
 function showScreen(screenNum) {
-    document.getElementById("titleScreen").style.display = "none";
-    document.getElementById("storyScreen1").style.display = "none";
-    document.getElementById("storyScreen2").style.display = "none";
-    document.getElementById("guideScreen").style.display = "none";
-    document.getElementById("statusLayer").style.display = "none";
-    document.getElementById("shopScreen").style.display = "none";
-    
+    hideAllScreens();
     if (screenNum === 1) document.getElementById("storyScreen1").style.display = "flex";
     if (screenNum === 2) document.getElementById("storyScreen2").style.display = "flex";
     if (screenNum === 3) document.getElementById("guideScreen").style.display = "flex";
 }
-
-function showShop() {
-    document.getElementById("titleScreen").style.display = "none";
-    document.getElementById("shopScreen").style.display = "flex";
-    updateShopUI();
-}
-
+function showShop(returnTo = "titleScreen") { shopReturnScreen = returnTo; hideAllScreens(); document.getElementById("shopScreen").style.display = "flex"; updateShopUI(); }
 function closeShop() {
     document.getElementById("shopScreen").style.display = "none";
-    document.getElementById("titleScreen").style.display = "flex";
-}
-
-function updateShopUI() {
-    document.getElementById("shopJuiceCount").innerText = `보유한 과즙 원료: ${savedJuiceRaw}개`;
-    document.getElementById("statHpDesc").innerText = `기본 알러지 저항 최대치 증가 (현재: LV.${upgLevelHp})`;
-    document.getElementById("statSpeedDesc").innerText = `바구니(패들) 조작 이동 속도 증가 (현재: LV.${upgLevelSpeed})`;
-    
-    const hpCost = 5 + upgLevelHp * 5;
-    const speedCost = 5 + upgLevelSpeed * 5;
-    
-    const buyHpBtn = document.getElementById("buyHpBtn");
-    if (upgLevelHp >= 5) { buyHpBtn.innerText = "최대 레벨"; buyHpBtn.disabled = true; }
-    else { buyHpBtn.innerText = `비용: ${hpCost}개`; buyHpBtn.disabled = savedJuiceRaw < hpCost; }
-    
-    const buySpeedBtn = document.getElementById("buySpeedBtn");
-    if (upgLevelSpeed >= 5) { buySpeedBtn.innerText = "최대 레벨"; buySpeedBtn.disabled = true; }
-    else { buySpeedBtn.innerText = `비용: ${speedCost}개`; buySpeedBtn.disabled = savedJuiceRaw < speedCost; }
-}
-
-function upgradeStat(stat) {
-    if (stat === 'hp') {
-        const cost = 5 + upgLevelHp * 5;
-        if (savedJuiceRaw >= cost && upgLevelHp < 5) {
-            savedJuiceRaw -= cost; upgLevelHp++;
-        }
-    } else if (stat === 'speed') {
-        const cost = 5 + upgLevelSpeed * 5;
-        if (savedJuiceRaw >= cost && upgLevelSpeed < 5) {
-            savedJuiceRaw -= cost; upgLevelSpeed++;
-        }
-    }
+    document.getElementById(shopReturnScreen).style.display = "flex";
     updateShopUI();
 }
-
-function applyUpgrades() {
-    maxAllergyHP = 100 + upgLevelHp * 20;
-    allergyHP = maxAllergyHP;
-    paddle.speed = paddle.baseSpeed + upgLevelSpeed * 1.2;
+function showStageSelect() { isGameActive = false; paused = false; renderStageSelect(); hideAllScreens(); document.getElementById("stageSelectScreen").style.display = "flex"; }
+function renderStageSelect() {
+    const list = document.getElementById("stageList");
+    list.innerHTML = "";
+    document.getElementById("stageProgressText").innerText = `해금 진행도: ${unlockedStage} / 5`;
+    STAGES.forEach((stage, index) => {
+        const number = index + 1;
+        const btn = document.createElement("button");
+        btn.className = "stage-btn";
+        btn.disabled = number > unlockedStage;
+        btn.innerText = number <= unlockedStage ? `STAGE ${number}\n${stage.name}${clearedStages.includes(number) ? " ✓ CLEAR" : ""}` : `STAGE ${number}\n🔒 잠김`;
+        btn.style.whiteSpace = "pre-line";
+        btn.onclick = () => { currentStage = number; saveGame(); resetGameData(); hideAllScreens(); isGameActive = true; paused = false; };
+        list.appendChild(btn);
+    });
 }
-
-function startGame() {
-    document.getElementById("guideScreen").style.display = "none";
-    document.getElementById("statusLayer").style.display = "none";
-    resetGameData();
-    isGameActive = true;
+function showStageSelectFromStatus() { showStageSelect(); }
+function showStageSelectFromPause() { showStageSelect(); }
+function pauseGame() { if (!isGameActive || paused) return; paused = true; isGameActive = false; document.getElementById("pauseScreen").style.display = "flex"; }
+function resumeGame() { document.getElementById("pauseScreen").style.display = "none"; paused = false; isGameActive = true; }
+function leaveToTitle() { showTitle(); }
+function updateShopUI() {
+    document.getElementById("shopJuiceCount").innerText = `보유한 과즙 원료: ${savedJuiceRaw}개`;
+    document.getElementById("statHpDesc").innerText = `기본 알레르기 저항 최대치 증가 (현재: LV.${upgLevelHp})`;
+    document.getElementById("statSpeedDesc").innerText = `바구니 이동 속도 증가 (현재: LV.${upgLevelSpeed})`;
+    const hpCost = 5 + upgLevelHp * 5, speedCost = 5 + upgLevelSpeed * 5;
+    const hpBtn = document.getElementById("buyHpBtn"), speedBtn = document.getElementById("buySpeedBtn");
+    hpBtn.innerText = upgLevelHp >= 5 ? "최대 레벨" : `비용: ${hpCost}개`; hpBtn.disabled = upgLevelHp >= 5 || savedJuiceRaw < hpCost;
+    speedBtn.innerText = upgLevelSpeed >= 5 ? "최대 레벨" : `비용: ${speedCost}개`; speedBtn.disabled = upgLevelSpeed >= 5 || savedJuiceRaw < speedCost;
 }
-
+function upgradeStat(stat) {
+    if (stat === "hp") { const cost = 5 + upgLevelHp * 5; if (savedJuiceRaw >= cost && upgLevelHp < 5) { savedJuiceRaw -= cost; upgLevelHp++; } }
+    if (stat === "speed") { const cost = 5 + upgLevelSpeed * 5; if (savedJuiceRaw >= cost && upgLevelSpeed < 5) { savedJuiceRaw -= cost; upgLevelSpeed++; } }
+    saveGame(); updateShopUI();
+}
+function applyUpgrades() { maxAllergyHP = 100 + upgLevelHp * 20; allergyHP = maxAllergyHP; paddle.speed = paddle.baseSpeed + upgLevelSpeed * 1.2; }
+function startGame() { hideAllScreens(); resetGameData(); paused = false; isGameActive = true; saveGame(); }
 function resetGameData() {
-    score = 0;
-    sessionEarnedJuice = 0;
-    applyUpgrades();
-    items = [];
-    pomegranateSeeds = [];
-    paddle.width = 100;
-    paddle.x = canvas.width / 2 - 50;
-    resetBall();
-    initBricks();
+    score = 0; sessionEarnedJuice = 0; applyUpgrades(); items = []; pomegranateSeeds = [];
+    shieldTime = fireTime = wideTime = slowTime = 0; paddle.width = 100; paddle.x = canvas.width / 2 - 50;
+    resetBall(); initBricks(); stageCleared = false;
 }
-
-function resetBall() {
-    ball.x = paddle.x + paddle.width / 2;
-    ball.y = paddle.y - ball.radius - 4;
-    ball.dx = (Math.random() > 0.5 ? 4 : -4);
-    ball.dy = -4.5;
-    ball.isFalling = false;
-}
-
-document.addEventListener("keydown", (e) => { if (e.key in keys) keys[e.key] = true; });
-document.addEventListener("keyup", (e) => { if (e.key in keys) keys[e.key] = false; });
-
+function resetBall() { ball.x = paddle.x + paddle.width / 2; ball.y = paddle.y - ball.radius - 4; ball.dx = Math.random() > .5 ? 4 : -4; ball.dy = -4.5; ball.isFalling = false; }
+document.addEventListener("keydown", e => {
+    if (e.key === "Escape") {
+        e.preventDefault();
+        if (paused) resumeGame();
+        else if (isGameActive) pauseGame();
+        return;
+    }
+    if (e.key in keys && isGameActive) keys[e.key] = true;
+});
+document.addEventListener("keyup", e => { if (e.key in keys) keys[e.key] = false; });
 function handleMove(clientX) {
     if (!isGameActive) return;
     const rect = canvas.getBoundingClientRect();
-    const relativeX = clientX - rect.left;
-    paddle.x = relativeX - paddle.width / 2;
-    
-    if (paddle.x < 0) paddle.x = 0;
-    if (paddle.x + paddle.width > canvas.width) paddle.x = canvas.width - paddle.width;
+    paddle.x = (clientX - rect.left) * (canvas.width / rect.width) - paddle.width / 2;
+    paddle.x = Math.max(0, Math.min(canvas.width - paddle.width, paddle.x));
 }
+canvas.addEventListener("mousemove", e => handleMove(e.clientX));
+canvas.addEventListener("touchmove", e => { if (e.touches.length) handleMove(e.touches[0].clientX); }, { passive: true });
 
-canvas.addEventListener("mousemove", (e) => handleMove(e.clientX));
-canvas.addEventListener("touchmove", (e) => {
-    if (e.touches.length > 0) handleMove(e.touches[0].clientX);
-}, { passive: true });
-
-function spawnItem(x, y) {
-    // 디버프 가스 아이템 낙하 (보라색)
-    if (Math.random() < 0.4) {
-        items.push({ x: x, y: y, radius: 8, vy: 1.0, type: "gas" });
-    }
-    // 유효 과즙 원료 아이템 낙하 (주황색 - 수집용)
-    if (Math.random() < 0.5) {
-        items.push({ x: x, y: y, radius: 7, vy: 1.5, type: "juice" });
+function spawnItem(x, y, type) {
+    // 좋은 아이템은 천천히, 위험 아이템은 조금 빠르게 떨어져 구분하기 쉽게 합니다.
+    const isGood = type === "juice" || type === "heal";
+    items.push({ x: Math.max(12, Math.min(canvas.width - 12, x)), y, radius: type === "gas" ? 12 : 11, vy: isGood ? 1.05 : 1.65, type });
+}
+function spawnDrops(x, y, fruitType) {
+    // 과즙 원료가 더 자주 나오고, 위험 물질과 좌우 간격을 두고 떨어집니다.
+    if (Math.random() < 0.72) spawnItem(x - 17, y, "juice");
+    if (Math.random() < 0.16) spawnItem(x + 20, y, "gas");
+    if (fruitType === "strawberry" && Math.random() < 0.8) spawnItem(x - 25, y - 5, "juice");
+    if (fruitType === "pineapple" && Math.random() < 0.2) spawnItem(x + 27, y, "gas");
+    if (fruitType === "grape" && Math.random() < 0.3) spawnItem(x + 27, y, "gas");
+    // 낮은 확률로 체력 회복 아이템 등장 (최대 체력을 넘겨 회복하지 않음)
+    if (Math.random() < 0.12) spawnItem(x, y - 8, "heal");
+    // 특수 아이템은 낮은 확률로 등장
+    if (Math.random() < 0.12) {
+        const powerups = ["shield", "fire", "wide", "slow"];
+        spawnItem(x + (Math.random() < 0.5 ? -30 : 30), y, powerups[Math.floor(Math.random() * powerups.length)]);
     }
 }
-
 function triggerPomegranateExplosion(bx, by) {
-    const angleStep = (Math.PI * 2) / 8;
-    for (let i = 0; i < 8; i++) {
-        const angle = i * angleStep;
-        pomegranateSeeds.push({
-            x: bx,
-            y: by,
-            radius: 4,
-            dx: Math.cos(angle) * 5,
-            dy: Math.sin(angle) * 5,
-            active: true
-        });
+    for (let i = 0; i < 8; i++) { const angle = i * Math.PI / 4; pomegranateSeeds.push({ x: bx, y: by, radius: 4, dx: Math.cos(angle) * 5, dy: Math.sin(angle) * 5, active: true }); }
+}
+function damageBrick(b) {
+    if (!b || b.status <= 0) return;
+    b.status--;
+    if (b.status === 0) {
+        score += b.score;
+        const cx = b.x + brickWidth / 2, cy = b.y + brickHeight;
+        spawnDrops(cx, cy, b.type);
+        if (b.type === "pomegranate") triggerPomegranateExplosion(cx, b.y + brickHeight / 2);
+        if (b.type === "orange") {
+            // 오렌지 폭발: 주변 블록에 1회 피해
+            for (let c = 0; c < brickColumnCount; c++) for (let r = 0; r < bricks[c].length; r++) {
+                const other = bricks[c][r];
+                if (other !== b && other.status > 0 && Math.abs((other.x + brickWidth/2) - cx) < 95 && Math.abs((other.y + brickHeight/2) - (b.y + brickHeight/2)) < 58) damageBrick(other);
+            }
+        }
     }
 }
-
 function checkBlockCollision(targetX, targetY) {
-    for (let c = 0; c < brickColumnCount; c++) {
-        for (let r = 0; r < brickRowCount; r++) {
-            const b = bricks[c][r];
-            if (b.status > 0) {
-                if (targetX > b.x && targetX < b.x + brickWidth && targetY > b.y && targetY < b.y + brickHeight) {
-                    b.status--;
-                    if (b.status === 0) {
-                        score += b.score;
-                        spawnItem(b.x + brickWidth / 2, b.y + brickHeight);
-                        if (b.type === "pomegranate") {
-                            triggerPomegranateExplosion(b.x + brickWidth / 2, b.y + brickHeight / 2);
-                        }
-                    }
-                    return true;
-                }
-            }
+    for (let c = 0; c < brickColumnCount; c++) for (let r = 0; r < bricks[c].length; r++) {
+        const b = bricks[c][r];
+        if (b.status > 0 && targetX > b.x && targetX < b.x + brickWidth && targetY > b.y && targetY < b.y + brickHeight) {
+            damageBrick(b); return true;
         }
     }
     return false;
 }
-
+function countActiveBricks() { return bricks.reduce((sum, col) => sum + col.filter(b => b.status > 0).length, 0); }
 function collisionDetection() {
-    let activeBricks = 0;
-    for (let c = 0; c < brickColumnCount; c++) {
-        for (let r = 0; r < brickRowCount; r++) {
-            if (bricks[c][r].status > 0) activeBricks++;
-        }
-    }
-    
-    if (activeBricks === 0 && isGameActive) {
-        isGameActive = false;
+    if (countActiveBricks() === 0 && isGameActive) {
+        isGameActive = false; stageCleared = true;
+        if (!clearedStages.includes(currentStage)) clearedStages.push(currentStage);
         savedJuiceRaw += sessionEarnedJuice;
-        showEndLayer("STAGE CLEAR 🎉", "프루티가 모든 과일을 격파했습니다!", "#2b9348");
-        return;
+        if (currentStage < 5) { unlockedStage = Math.max(unlockedStage, currentStage + 1); }
+        saveGame();
+        const title = currentStage === 5 ? "KINGDOM CLEAR 🎉" : "STAGE CLEAR 🎉";
+        const desc = currentStage === 5 ? "프루티가 과일 왕국을 모두 구했습니다!" : `${STAGES[currentStage-1].name} 클리어! 다음 스테이지가 열렸습니다.`;
+        showEndLayer(title, desc, "#2b9348"); return;
     }
-
-    if (checkBlockCollision(ball.x, ball.y)) {
-        ball.dy = -ball.dy;
-    }
+    if (checkBlockCollision(ball.x, ball.y) && fireTime <= 0) ball.dy = -ball.dy;
 }
-
 function showEndLayer(title, desc, titleColor) {
-    const layer = document.getElementById("statusLayer");
-    const tLabel = document.getElementById("statusTitle");
-    const dLabel = document.getElementById("statusDesc");
-    const rLabel = document.getElementById("statusReward");
-    tLabel.innerText = title;
-    tLabel.style.color = titleColor;
-    dLabel.innerText = desc;
-    rLabel.innerText = `확보한 과즙 원료: +${sessionEarnedJuice}개 (누적: ${savedJuiceRaw}개)`;
-    layer.style.display = "flex";
+    document.getElementById("statusTitle").innerText = title;
+    document.getElementById("statusTitle").style.color = titleColor;
+    document.getElementById("statusDesc").innerText = desc;
+    document.getElementById("statusReward").innerText = `획득 과즙: +${sessionEarnedJuice}개 (누적: ${savedJuiceRaw}개)`;
+    const restartBtn = document.querySelector(".restart-btn");
+    restartBtn.innerText = stageCleared ? (currentStage < 5 ? "다음 스테이지" : "처음부터 다시") : "다시 하기";
+    document.getElementById("statusLayer").style.display = "flex";
 }
-
 function handleRestart() {
-    document.getElementById("statusLayer").style.display = "none";
-    resetGameData();
-    isGameActive = true;
+    if (stageCleared && currentStage < 5) currentStage++;
+    else if (stageCleared && currentStage === 5) currentStage = 1;
+    saveGame(); hideAllScreens(); resetGameData(); paused = false; isGameActive = true;
 }
-
-function handleExit() {
-    document.getElementById("statusLayer").style.display = "none";
-    document.getElementById("titleScreen").style.display = "flex";
-    isGameActive = false;
-}
+function handleExit() { showTitle(); document.querySelector(".start-btn").innerText = `게임 시작 (스테이지 ${currentStage})`; }
 
 function drawBackground() {
-    ctx.fillStyle = "#fff5f5"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = "#ffe3e3"; ctx.lineWidth = 1.5;
-    for (let x = 0; x < canvas.width; x += 40) {
-        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
-    }
-    for (let y = 0; y < canvas.height; y += 40) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
-    }
+    const colors = ["#fff5f5", "#f3fff4", "#fff8e9", "#f5f0ff", "#fff0f2"];
+    ctx.fillStyle = colors[currentStage - 1]; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "rgba(220,150,150,.22)"; ctx.lineWidth = 1.5;
+    for (let x = 0; x < canvas.width; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
+    for (let y = 0; y < canvas.height; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
 }
-
 function drawFruity() {
-    const px = paddle.x + paddle.width / 2;
-    const py = paddle.y + 35;
+    const px = paddle.x + paddle.width / 2, py = paddle.y + 35;
     ctx.fillStyle = "#4a3728"; ctx.beginPath(); ctx.arc(px, py - 22, 16, Math.PI, 0); ctx.fill();
-    ctx.fillStyle = "#ffffff"; ctx.fillRect(px - 12, py - 8, 24, 16);
-    ctx.fillStyle = "#4a90e2"; ctx.fillRect(px - 12, py + 8, 24, 10);
+    ctx.fillStyle = "#fff"; ctx.fillRect(px - 12, py - 8, 24, 16); ctx.fillStyle = "#4a90e2"; ctx.fillRect(px - 12, py + 8, 24, 10);
     ctx.fillStyle = "#ffdbac"; ctx.beginPath(); ctx.arc(px, py - 18, 12, 0, Math.PI * 2); ctx.fill();
     ctx.fillRect(px - 8, py + 18, 5, 8); ctx.fillRect(px + 3, py + 18, 5, 8);
     ctx.fillStyle = "#4a3728"; ctx.fillRect(px - 14, py - 24, 6, 12); ctx.fillRect(px + 8, py - 24, 6, 12); ctx.fillRect(px - 12, py - 26, 24, 5);
     ctx.fillStyle = "#333"; ctx.fillRect(px - 6, py - 20, 2, 3); ctx.fillRect(px + 4, py - 20, 2, 3);
     ctx.fillStyle = "#ff6b6b"; ctx.beginPath(); ctx.arc(px, py - 16, 2.5, 0, Math.PI * 2); ctx.fill();
-    
-    ctx.fillStyle = "#ff9f43"; ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+    ctx.fillStyle = shieldTime > 0 ? "#4cc9f0" : "#ff9f43"; ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
     ctx.strokeStyle = "#d35400"; ctx.lineWidth = 1;
-    for(let i = paddle.x + 10; i < paddle.x + paddle.width; i += 10) {
-        ctx.beginPath(); ctx.moveTo(i, paddle.y); ctx.lineTo(i, paddle.y + paddle.height); ctx.stroke();
-    }
+    for (let i = paddle.x + 10; i < paddle.x + paddle.width; i += 10) { ctx.beginPath(); ctx.moveTo(i, paddle.y); ctx.lineTo(i, paddle.y + paddle.height); ctx.stroke(); }
 }
-
 function drawBall() {
-    ctx.save(); ctx.translate(ball.x, ball.y);
-    const angle = Math.atan2(ball.dy, ball.dx); ctx.rotate(angle);
-    ctx.fillStyle = "#2e86de"; ctx.beginPath(); ctx.arc(0, 0, ball.radius, Math.PI / 2, (Math.PI * 3) / 2); ctx.fill();
-    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(0, 0, ball.radius, (Math.PI * 3) / 2, Math.PI / 2); ctx.fill();
-    ctx.strokeStyle = "#a4b0be"; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.translate(ball.x, ball.y); ctx.rotate(Math.atan2(ball.dy, ball.dx));
+    ctx.fillStyle = fireTime > 0 ? "#ff6b35" : "#2e86de"; ctx.beginPath(); ctx.arc(0, 0, ball.radius, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
 }
-
 function drawBricks() {
-    for (let c = 0; c < brickColumnCount; c++) {
-        for (let r = 0; r < brickRowCount; r++) {
-            const b = bricks[c][r];
-            if (b.status > 0) {
-                const brickX = c * (brickWidth + brickPadding) + brickOffsetLeft;
-                const brickY = r * (brickHeight + brickPadding) + brickOffsetTop;
-                b.x = brickX; b.y = brickY;
-                ctx.fillStyle = b.color; ctx.beginPath(); ctx.roundRect(brickX, brickY, brickWidth, brickHeight, 8); ctx.fill();
-                
-                if (b.type === "watermelon") {
-                    // 화가 난 찡그린 수박 디테일 연출
-                    ctx.strokeStyle = "#1b4d3e"; ctx.lineWidth = 2; ctx.beginPath();
-                    ctx.moveTo(brickX + 20, brickY); ctx.quadraticCurveTo(brickX + 25, brickY + 17, brickX + 20, brickY + brickHeight);
-                    ctx.moveTo(brickX + 56, brickY); ctx.quadraticCurveTo(brickX + 51, brickY + 17, brickX + 56, brickY + brickHeight); ctx.stroke();
-                    
-                    // 찌푸린 눈썹 연출
-                    ctx.strokeStyle = "#000"; ctx.lineWidth = 2;
-                    ctx.beginPath(); ctx.moveTo(brickX + 22, brickY + 10); ctx.lineTo(brickX + 32, brickY + 14); ctx.stroke();
-                    ctx.beginPath(); ctx.moveTo(brickX + 54, brickY + 10); ctx.lineTo(brickX + 44, brickY + 14); ctx.stroke();
-                    
-                    // 껍질 크랙 표현 (내구도 손상도 가시화)
-                    if (b.status < b.maxHp) { 
-                        ctx.strokeStyle = "rgba(255, 255, 255, 0.85)"; ctx.lineWidth = 1.5;
-                        ctx.beginPath(); ctx.moveTo(brickX + 15, brickY + 8); ctx.lineTo(brickX + 35, brickY + 28); 
-                        if (b.status === 1) { ctx.moveTo(brickX + 60, brickY + 8); ctx.lineTo(brickX + 45, brickY + 25); }
-                        ctx.stroke(); 
-                    }
-                } else if (b.type === "apple") {
-                    ctx.fillStyle = "#ffda79"; ctx.fillRect(brickX + 25, brickY + 12, 2, 3); ctx.fillRect(brickX + 50, brickY + 15, 2, 3);
-                } else if (b.type === "pomegranate") {
-                    // 석류 무늬 씨앗 결정 묘사
-                    ctx.fillStyle = "#ffffff"; ctx.fillRect(brickX + 30, brickY + 10, 3, 3); ctx.fillRect(brickX + 45, brickY + 20, 3, 3);
-                }
-                
-                // 눈과 입 그리기 (귀여운 과일 몬스터 공통 얼굴 구조 유지)
-                ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(brickX + brickWidth / 2 - 12, brickY + 18, 4, 0, Math.PI * 2); ctx.arc(brickX + brickWidth / 2 + 12, brickY + 18, 4, 0, Math.PI * 2); ctx.fill();
-                ctx.fillStyle = "#000000"; ctx.beginPath(); ctx.arc(brickX + brickWidth / 2 - 12, brickY + 18, 2, 0, Math.PI * 2); ctx.arc(brickX + brickWidth / 2 + 12, brickY + 18, 2, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = "#000000"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(brickX + brickWidth / 2 - 5, brickY + 25); ctx.lineTo(brickX + brickWidth / 2, brickY + 22); ctx.lineTo(brickX + brickWidth / 2 + 5, brickY + 25); ctx.stroke();
-            }
-        }
+    for (let c = 0; c < brickColumnCount; c++) for (let r = 0; r < bricks[c].length; r++) {
+        const b = bricks[c][r]; if (b.status <= 0) continue;
+        const x = c * (brickWidth + brickPadding) + brickOffsetLeft, y = r * (brickHeight + brickPadding) + brickOffsetTop;
+        b.x = x; b.y = y;
+        ctx.fillStyle = b.color; ctx.beginPath(); ctx.roundRect(x, y, brickWidth, brickHeight, 8); ctx.fill();
+        // 과일 종류별 식별 무늬
+        ctx.fillStyle = "rgba(255,255,255,.35)";
+        if (b.type === "watermelon") { ctx.fillRect(x+18,y+4,4,27); ctx.fillRect(x+53,y+4,4,27); }
+        if (b.type === "pineapple") { for(let k=0;k<3;k++){ctx.beginPath();ctx.moveTo(x+25+k*12,y+7);ctx.lineTo(x+31+k*12,y+27);ctx.lineTo(x+37+k*12,y+7);ctx.fill();} }
+        if (b.type === "strawberry") { ctx.beginPath(); ctx.arc(x+38,y+18,3,0,Math.PI*2); ctx.fill(); ctx.arc(x+25,y+22,2,0,Math.PI*2); ctx.fill(); ctx.arc(x+51,y+12,2,0,Math.PI*2); ctx.fill(); }
+        if (b.type === "orange") { ctx.beginPath(); ctx.arc(x+38,y+18,11,0,Math.PI*2); ctx.strokeStyle="#fff0c2"; ctx.stroke(); }
+        if (b.type === "grape") { for(let k=0;k<4;k++){ctx.beginPath();ctx.arc(x+29+(k%2)*14,y+13+Math.floor(k/2)*10,5,0,Math.PI*2);ctx.fill();} }
+        if (b.status < b.maxHp) { ctx.strokeStyle="rgba(255,255,255,.9)"; ctx.beginPath(); ctx.moveTo(x+15,y+8); ctx.lineTo(x+35,y+28); ctx.stroke(); }
+        ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(x+26,y+17,3,0,Math.PI*2); ctx.arc(x+50,y+17,3,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle="#222"; ctx.beginPath(); ctx.arc(x+26,y+17,1.5,0,Math.PI*2); ctx.arc(x+50,y+17,1.5,0,Math.PI*2); ctx.fill();
     }
 }
-
+function applyPowerup(type) {
+    if (type === "shield") shieldTime = 600;
+    if (type === "fire") fireTime = 600;
+    if (type === "wide") { wideTime = 600; paddle.width = 145; }
+    if (type === "slow") { slowTime = 600; ball.dx *= .65; ball.dy *= .65; }
+}
+const ITEM_STYLE = {
+    gas: ["#7435a8", "!"], juice: ["#ff9f1c", "J"], heal: ["#ef476f", "+"],
+    shield: ["#36b9e9", "S"], fire: ["#f05b35", "F"], wide: ["#2b9348", "W"], slow: ["#5476d8", "T"]
+};
 function drawItems() {
-    items.forEach((item, index) => {
-        if (!isGameActive) return;
-        
-        if (item.type === "gas") {
-            // 역방향 중력 가속도 적용 (기획서 기믹 반영)
-            item.vy += 0.08; 
-            item.y += item.vy;
-            
-            ctx.fillStyle = "#9b59b6"; ctx.beginPath(); ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = "#8e44ad"; ctx.fillRect(item.x - 10, item.y - 2, 4, 4); ctx.fillRect(item.x + 6, item.y - 2, 4, 4);
-            
-            if (item.y + item.radius > paddle.y && item.x > paddle.x && item.x < paddle.x + paddle.width) {
-                allergyHP = Math.max(0, allergyHP - 20); paddle.width = Math.max(50, paddle.width - 15); items.splice(index, 1);
-                if (allergyHP <= 0 && isGameActive) { isGameActive = false; savedJuiceRaw += sessionEarnedJuice; showEndLayer("GAME OVER", "알러지 물질을 과다 흡입했습니다!", "#ff4d6d"); }
-            }
-        } else if (item.type === "juice") {
-            // 주황색 유효 원료 과즙 획득 아이템
-            item.y += item.vy;
-            ctx.fillStyle = "#ff9f43"; ctx.beginPath(); ctx.arc(item.x, item.y, item.radius, 0, Math.PI * 2); ctx.fill();
-            ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(item.x - 2, item.y - 2, 2, 0, Math.PI * 2); ctx.fill(); // 반짝임 효과
-            
-            if (item.y + item.radius > paddle.y && item.x > paddle.x && item.x < paddle.x + paddle.width) {
-                sessionEarnedJuice++;
-                items.splice(index, 1);
-            }
+    for (let i = items.length - 1; i >= 0; i--) {
+        const item = items[i]; item.y += item.vy;
+        const style = ITEM_STYLE[item.type];
+        ctx.save();
+        if (item.type === "heal") {
+            // 하트 모양: 체력 회복 아이템
+            ctx.fillStyle = style[0]; ctx.beginPath();
+            ctx.moveTo(item.x, item.y + 8); ctx.bezierCurveTo(item.x - 18, item.y - 2, item.x - 10, item.y - 15, item.x, item.y - 7);
+            ctx.bezierCurveTo(item.x + 10, item.y - 15, item.x + 18, item.y - 2, item.x, item.y + 8); ctx.fill();
+        } else {
+            ctx.fillStyle = style[0]; ctx.beginPath();
+            if (item.type === "gas") {
+                // 위험 물질은 뾰족한 경고 표식으로 표시
+                ctx.moveTo(item.x, item.y - 13); ctx.lineTo(item.x + 12, item.y + 10); ctx.lineTo(item.x - 12, item.y + 10); ctx.closePath(); ctx.fill();
+            } else { ctx.arc(item.x, item.y, item.radius, 0, Math.PI*2); ctx.fill(); }
         }
-        
-        if (item.y > canvas.height) { items.splice(index, 1); }
-    });
+        ctx.fillStyle="#fff"; ctx.font="bold 11px Arial"; ctx.textAlign="center"; ctx.fillText(style[1],item.x,item.y+4);
+        ctx.restore();
+        if (item.y + item.radius >= paddle.y && item.x >= paddle.x && item.x <= paddle.x + paddle.width) {
+            if (item.type === "gas") {
+                if (shieldTime > 0) shieldTime = Math.max(0, shieldTime - 180);
+                else { allergyHP = Math.max(0, allergyHP - 20); paddle.width = Math.max(50, paddle.width - 15); }
+                if (allergyHP <= 0) endGame("알레르기 물질을 과다 흡입했습니다!");
+            } else if (item.type === "juice") sessionEarnedJuice++;
+            else if (item.type === "heal") allergyHP = Math.min(maxAllergyHP, allergyHP + 25);
+            else applyPowerup(item.type);
+            items.splice(i,1); continue;
+        }
+        if (item.y > canvas.height + 20) items.splice(i,1);
+    }
 }
-
 function drawSeeds() {
-    pomegranateSeeds.forEach((seed, index) => {
-        if (!seed.active) return;
-        seed.x += seed.dx;
-        seed.y += seed.dy;
-        
-        ctx.fillStyle = "#ff4d6d"; ctx.beginPath(); ctx.arc(seed.x, seed.y, seed.radius, 0, Math.PI * 2); ctx.fill();
-        
-        // 블록과의 물리 연쇄 타격 판정처리
-        if (checkBlockCollision(seed.x, seed.y)) {
-            seed.active = false;
-            pomegranateSeeds.splice(index, 1);
-            return;
-        }
-        
-        // 화면 외곽 소멸 처리
-        if (seed.x < 0 || seed.x > canvas.width || seed.y < 0 || seed.y > canvas.height) {
-            seed.active = false;
-            pomegranateSeeds.splice(index, 1);
-        }
-    });
+    for (let i = pomegranateSeeds.length - 1; i >= 0; i--) {
+        const seed = pomegranateSeeds[i]; seed.x += seed.dx; seed.y += seed.dy;
+        ctx.fillStyle="#ff4d6d"; ctx.beginPath(); ctx.arc(seed.x,seed.y,seed.radius,0,Math.PI*2); ctx.fill();
+        if (checkBlockCollision(seed.x,seed.y) || seed.x<0 || seed.x>canvas.width || seed.y<0 || seed.y>canvas.height) pomegranateSeeds.splice(i,1);
+    }
 }
-
 function drawUI() {
-    ctx.fillStyle = "#ff9f43"; ctx.beginPath(); ctx.arc(40, 35, 20, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5;
-    for(let i=0; i<360; i+=60) { let rad = i * Math.PI / 180; ctx.beginPath(); ctx.moveTo(40, 35); ctx.lineTo(40 + 16 * Math.cos(rad), 35 + 16 * Math.sin(rad)); ctx.stroke(); }
-    
-    ctx.fillStyle = "#2c3e50"; ctx.font = "bold 14px 'Malgun Gothic'"; ctx.textAlign = "left"; 
-    ctx.fillText(`SCORE: ${score}`, 70, 32);
-    ctx.fillStyle = "#e67e22"; ctx.fillText(`🧪 원료: ${sessionEarnedJuice}개`, 70, 48);
-    
-    ctx.textAlign = "right"; ctx.fillStyle = "#7f8c8d"; ctx.font = "12px 'Malgun Gothic'"; ctx.fillText("알러지 게이지", canvas.width - 145, 40);
-    ctx.strokeStyle = "#7f8c8d"; ctx.lineWidth = 2; ctx.strokeRect(canvas.width - 135, 25, 120, 20);
-    
-    ctx.fillStyle = "#ff4d6d"; const hpBarWidth = (allergyHP / maxAllergyHP) * 116; ctx.fillRect(canvas.width - 133, 27, hpBarWidth, 16);
-    ctx.fillStyle = "#7f8c8d"; ctx.fillRect(canvas.width - 145, 33, 10, 4);
+    ctx.textAlign="left"; ctx.fillStyle="#2c3e50"; ctx.font="bold 13px 'Malgun Gothic'";
+    ctx.fillText(`STAGE ${currentStage}/5 · ${STAGES[currentStage-1].name}`, 18, 22);
+    ctx.fillText(`SCORE: ${score}`, 18, 43); ctx.fillStyle="#e67e22"; ctx.fillText(`과즙: ${sessionEarnedJuice}개`, 18, 62);
+    ctx.textAlign="right"; ctx.fillStyle="#7f8c8d"; ctx.font="12px 'Malgun Gothic'"; ctx.fillText("알레르기 게이지",canvas.width-15,22);
+    ctx.strokeStyle="#7f8c8d"; ctx.strokeRect(canvas.width-135,30,120,15);
+    ctx.fillStyle="#ff4d6d"; ctx.fillRect(canvas.width-133,32,116*(allergyHP/maxAllergyHP),11);
+    const buffs=[]; if(shieldTime>0)buffs.push("보호막"); if(fireTime>0)buffs.push("불꽃"); if(wideTime>0)buffs.push("확장"); if(slowTime>0)buffs.push("시간 정지");
+    ctx.textAlign="center"; ctx.fillStyle="#34495e"; ctx.font="bold 12px 'Malgun Gothic'"; if(buffs.length)ctx.fillText("효과: "+buffs.join(" · "),canvas.width/2,canvas.height-12);
 }
-
+function endGame(reason) {
+    if (!isGameActive) return;
+    isGameActive=false; savedJuiceRaw += sessionEarnedJuice; saveGame();
+    showEndLayer("GAME OVER",reason,"#ff4d6d");
+}
 function update() {
     if (!isGameActive) return;
-
     if (keys.ArrowLeft || keys.Left) paddle.x -= paddle.speed;
     if (keys.ArrowRight || keys.Right) paddle.x += paddle.speed;
-
-    if (paddle.x < 0) paddle.x = 0;
-    if (paddle.x + paddle.width > canvas.width) paddle.x = canvas.width - paddle.width;
-
-    ball.x += ball.dx;
-    ball.y += ball.dy;
-
-    if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) { ball.dx = -ball.dx; }
-    if (ball.y - ball.radius < 0) { ball.dy = -ball.dy; }
-
-    if (ball.y - ball.radius > canvas.height && !ball.isFalling) {
-        ball.isFalling = true; 
-        allergyHP = Math.max(0, allergyHP - 15);
-        
-        if (allergyHP <= 0) {
-            isGameActive = false;
-            savedJuiceRaw += sessionEarnedJuice;
-            showEndLayer("GAME OVER", "과즙 알러지 증상이 심해졌습니다!", "#ff4d6d");
-        } else {
-            resetBall();
-        }
+    paddle.x=Math.max(0,Math.min(canvas.width-paddle.width,paddle.x));
+    if(shieldTime>0)shieldTime--; if(fireTime>0)fireTime--; if(wideTime>0){wideTime--;if(wideTime===0)paddle.width=100;} if(slowTime>0){slowTime--;if(slowTime===0){const m=Math.hypot(ball.dx,ball.dy)||1;ball.dx*=1.5;ball.dy*=1.5;}}
+    ball.x+=ball.dx; ball.y+=ball.dy;
+    if(ball.x+ball.radius>canvas.width || ball.x-ball.radius<0)ball.dx=-ball.dx;
+    if(ball.y-ball.radius<0)ball.dy=-ball.dy;
+    if(ball.y-ball.radius>canvas.height && !ball.isFalling){
+        ball.isFalling=true;
+        if(shieldTime>0){shieldTime=0;resetBall();}
+        else {allergyHP=Math.max(0,allergyHP-15);if(allergyHP<=0)endGame("공을 놓쳐 알레르기 증상이 심해졌습니다!");else resetBall();}
     }
-
-    if (ball.y + ball.radius > paddle.y && ball.y - ball.radius < paddle.y + paddle.height) {
-        if (ball.x > paddle.x && ball.x < paddle.x + paddle.width) {
-            ball.dy = -ball.speed;
-            let hitPoint = ball.x - (paddle.x + paddle.width / 2);
-            ball.dx = hitPoint * 0.12;
-        }
+    if(ball.y+ball.radius>paddle.y && ball.y-ball.radius<paddle.y+paddle.height && ball.x>paddle.x && ball.x<paddle.x+paddle.width){
+        ball.dy=-Math.abs(ball.dy); const hit=ball.x-(paddle.x+paddle.width/2); ball.dx=hit*.12;
     }
-    collisionDetection();
+    // 불꽃 공은 블록을 관통하며, 일반 공은 충돌 시 튕김
+    if(checkBlockCollision(ball.x,ball.y) && fireTime<=0)ball.dy=-ball.dy;
+    if(countActiveBricks()===0 && isGameActive){
+        isGameActive=false;stageCleared=true;if(!clearedStages.includes(currentStage))clearedStages.push(currentStage);savedJuiceRaw+=sessionEarnedJuice;
+        if(currentStage<5)unlockedStage=Math.max(unlockedStage,currentStage+1);
+        saveGame();showEndLayer(currentStage===5?"KINGDOM CLEAR 🎉":"STAGE CLEAR 🎉",currentStage===5?"프루티가 과일 왕국을 모두 구했습니다!":`${STAGES[currentStage-1].name} 클리어! 다음 스테이지가 열렸습니다.`,"#2b9348");
+    }
 }
-
-function mainLoop() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawBackground();
-    drawBricks(); 
-    drawBall(); 
-    drawSeeds();
-    drawFruity(); 
-    drawItems(); 
-    drawUI();
-    update();
-    requestAnimationFrame(mainLoop);
+function mainLoop(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);drawBackground();drawBricks();drawBall();drawSeeds();drawFruity();drawItems();drawUI();update();requestAnimationFrame(mainLoop);
 }
-
-initBricks();
-mainLoop();
+// 시작 화면에 저장된 진행 상황 표시
+const startButton=document.querySelector(".start-btn");
+startButton.innerText=`게임 시작 (스테이지 ${currentStage})`;
+initBricks();renderStageSelect();mainLoop();
 </script>
 
 </body>
