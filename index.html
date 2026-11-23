@@ -207,6 +207,27 @@
         .pause-screen .title-text { color:#fff; }
         .pause-screen .subtitle-text { color:#ffd6a5; margin-bottom:22px; }
         .pause-screen .main-btn-group { width:220px; }
+
+        /* 모바일에서만 표시되는 일시정지 버튼 */
+        #mobilePauseBtn {
+            display: none;
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 5;
+            padding: 9px 13px;
+            border: none;
+            border-radius: 20px;
+            background: rgba(255, 77, 109, 0.95);
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        @media (pointer: coarse) {
+            #mobilePauseBtn { display: block; }
+        }
+
         .status-actions { display:flex; flex-direction:column; align-items:center; gap:12px; }
         .status-actions .btn-group { gap:10px; flex-wrap:wrap; justify-content:center; }
         .status-actions .ui-btn { padding:11px 17px; }
@@ -272,7 +293,7 @@
 
     <div id="pauseScreen" class="overlay-screen pause-screen" style="display:none;">
         <div class="title-text">일시 정지</div>
-        <div class="subtitle-text">ESC 키를 누르면 이어서 플레이합니다.</div>
+        <div class="subtitle-text">계속하기 버튼을 누르면 이어서 플레이합니다.</div>
         <div class="main-btn-group">
             <button class="start-btn" onclick="resumeGame()">계속하기</button>
             <button class="ui-btn restart-btn" onclick="restartFromPause()">다시 하기</button>
@@ -322,6 +343,7 @@
     </div>
 
     <canvas id="gameCanvas" width="480" height="600"></canvas>
+    <button id="mobilePauseBtn" onclick="pauseGame()">Ⅱ 일시정지</button>
 </div>
 
 <script>
